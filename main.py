@@ -1,7 +1,7 @@
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from typing import List
-from fastapi import FastAPI, Form, Body
+from fastapi import FastAPI, Form, Body, Request
 
 app = FastAPI()
 
@@ -57,8 +57,25 @@ async def main():
 items = {"foo": "The Foo Wrestlers"}
 
 
+class UnicornException(Exception):
+    def __init__(self, name: str):
+        self.name = name
+
+
+@app.exception_handler(UnicornException)
+async def unicorn_exception_handler(request: Request, exc: UnicornException):
+    return JSONResponse(
+        status_code=418,
+        content={
+            "message": f"Oops! {exc.name} did something. There goes a rainbow..."},
+    )
+
 @app.get("/items/{item_id}")
 async def read_item(item_id: str):
+    if item_id in ("foo3"):
+        raise UnicornException(item_id)
     if item_id not in items:
-        raise HTTPException(status_code=404, detail={"disMsg": "Search somewhere else"})
+        raise HTTPException(status_code=404, detail={"disMsg": "Search somewhere else"},
+                            headers={"X-Error": "There goes my error"},
+                            )
     return {"item": items[item_id]}
