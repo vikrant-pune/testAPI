@@ -1,9 +1,21 @@
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from typing import List
-from fastapi import FastAPI, Form, Body, Request
+from fastapi import FastAPI, Form, Body, Request , Depends
+from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional
+from fastapi.security import OAuth2PasswordBearer
+
+
+
 
 app = FastAPI()
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 @app.post("/login/")
@@ -70,8 +82,13 @@ async def unicorn_exception_handler(request: Request, exc: UnicornException):
             "message": f"Oops! {exc.name} did something. There goes a rainbow..."},
     )
 
+
+# @app.exception_handler(RequestValidationError)
+# async def validation_exception_handler(request, exc):
+#     return PlainTextResponse(str(exc), status_code=400)
+
 @app.get("/items/{item_id}")
-async def read_item(item_id: str):
+async def read_item(item_id: str, t1: int, token: str = Depends(oauth2_scheme)):
     if item_id in ("foo3"):
         raise UnicornException(item_id)
     if item_id not in items:
@@ -79,3 +96,20 @@ async def read_item(item_id: str):
                             headers={"X-Error": "There goes my error"},
                             )
     return {"item": items[item_id]}
+
+
+class Item(BaseModel):
+    title: str
+    timestamp: datetime
+    description: Optional[str] = None
+
+
+fake_db = {}
+
+
+@app.put("/items/{id}")
+def update_item(id: str, item: Item):
+    json_compatible_item_data = jsonable_encoder(item)
+    fake_db[id] = item
+    return {"item": item,
+            "json_item": json_compatible_item_data}
