@@ -1,3 +1,5 @@
+from fastapi import Cookie, Depends, FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from typing import List
@@ -8,6 +10,9 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 from fastapi.security import OAuth2PasswordBearer
+
+import uvicorn
+
 
 
 
@@ -113,3 +118,43 @@ def update_item(id: str, item: Item):
     fake_db[id] = item
     return {"item": item,
             "json_item": json_compatible_item_data}
+
+
+# app = FastAPI()
+
+
+async def common_parameters(q: Optional[str] = None, skip: int = 0, limit: int = 100):
+    return {"q": q, "skip": skip, "limit": limit}
+
+
+@app.get("/items/")
+async def read_items(q1: int, commons: dict = Depends(common_parameters)):
+    return commons
+
+
+@app.get("/users/")
+async def read_users(commons: dict = Depends(common_parameters)):
+    return commons
+
+
+
+
+def query_extractor(q: Optional[str] = None):
+    return q
+
+
+def query_or_cookie_extractor(
+    q: str = Depends(query_extractor), last_query: Optional[str] = Cookie(None)
+):
+    if not q:
+        return last_query
+    return q
+
+
+@app.get("/items2/")
+async def read_query(query_or_default: str = Depends(query_or_cookie_extractor)):
+    return {"q_or_cookie": query_or_default}
+
+
+if __name__ == '__main__':
+    uvicorn.run(app, host="0.0.0.0", port=8000)
